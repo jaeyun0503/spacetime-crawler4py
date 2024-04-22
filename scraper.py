@@ -1,11 +1,14 @@
 import re
-from urllib.parse import urlparse, urldefrag, urljoin
+from urllib.parse import urlparse, urldefrag, urljoin, parse_qs
+from urllib.robotparser import RobotFileParser
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from stopWords import STOPWORDS
 
 word_count = defaultdict(int) # To save word counts for later (using this to skip initializing step)
 subdomains = defaultdict(int) # To save url counts for each subdomain under ics.uci.edu
+parsers = defaultdict(RobotFileParser) # To save instance of RobotFileParser to avoid parsing multiple times 
+
 unique_pages = {} # Dictionary for saving the hash values and unique urls
 largest_words = 0 # Saving the number of words in the longest page
 largest_page = "" # Saving the url of the longest page
@@ -58,7 +61,7 @@ def extract_next_links(url, resp):
                 tokens.append(temp)
                 word_count[temp] += 1
 
-        if len(tokens) > 250: # List of tokens > 250 is considered as having high textual information content
+        if 250 < len(tokens) < 100000000: # List of 250 < tokens < 100000000 is considered as having high textual information content
             # Checking repetitive page Portion using hash
             hashed = hash(tuple(tokens)) # Using tuple as hash() needs immutable object
             if hashed in unique_pages.keys():
@@ -96,16 +99,49 @@ def extract_next_links(url, resp):
 
 
 def is_valid(url):
+    """
+    Checks if a url is valid (meeting the requirements). Including: checking for URL scheme, domains, calendar trap, excessive query parameters, robots.txt. 
+
+    Args:
+        url (string): url of page
+
+    Returns:
+        truth value (boolean): validity of the page (whether to crawl or not)
+    """
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
+        # URL scheme check
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
+
+        # Domain check
+        domains = ['.ics.uci.edu', '.cs.uci.edu', '.stat.uci.edu', '.informatics.uci.edu']
+        if not any(domain in parsed.netloc for domain in allowed_domains):
+            return False
+
+        # Calendar trap (need to fix later)
+        if re.search(r'(/calendar/|/\d{4}/\d{1,2}/\d{1,2}/)', parsed.path):
+            return False
+
+        # Excessive query parameters
+        if len(parse_qs(parsed.query)) > 15:  # More than 15 -- Excessive
+            return False
+
+        # Robots.txt
+        if parsed.netloc not in parsers:
+            parsers[parsed.netloc].set_url(f"{parsed.scheme}://{parsed.netloc}/robots.txt")
+            parsers[parsed.netloc].read()
+
+        if not parsers[parsed.netloc].can_fetch("*", url):
+            return False
+
+        # File extensions
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
-            + r"|png|tiff?|mid|mp2|mp3|mp4"
+            + r"|png|tiff?|mid|mp2|mp3|mp4|mpg"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
