@@ -1,14 +1,41 @@
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urldefrag, urljoin
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from stopWords import STOPWORDS
 
+word_count = defaultdict(int) # To save word counts for later (using this to skip initializing step)
+subdomains = defaultdict(int) # To save url counts for each subdomain under ics.uci.edu
+unique_pages = {} # Dictionary for saving the hash values and unique urls
+largest_words = 0 # Saving the number of words in the longest page
+largest_page = "" # Saving the url of the longest page
+
 def scraper(url, resp):
+    """
+    Generates a list of valid URLs using extract_next_link() and is_valid() functions
+
+    Args:
+        url (string): URL of page
+        resp (resp): Response Object
+
+    Returns:
+        list of URLs: URLs that have been checked
+    """
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
 
 def extract_next_links(url, resp):
+    """
+    Generates a list of links of unique pages. Checks the response status of the url, the content of the url can be considered as high textual information content,
+    and hash the content of the page to check if it matches with pages that already exist (similar content is being skipped).
+
+    Args:
+        url (string): URL of page
+        resp (resp): Response Object
+
+    Returns:
+        list of URLs: URLs that have unique content
+    """
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
     # resp.status: the status code returned by the server. 200 is OK, you got the page. Other numbers mean that there was some kind of problem.
@@ -17,18 +44,56 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    urls = set()
+
+    urls = set()  # Set for saving unique links
     if resp.status == 200 and resp.raw_response.content: # Check if status is 200 (OK) and the response contains content
         soup = BeautifulSoup(resp.raw_response.content,'html.parser')
+        page_content = soup.get_text()  # Getting the text on the URL page
+        tokens = []  # List of tokens
 
-        page_content = soup.get_text()  # Getting the text from the page
+        # for loop to check if the word is valid, not in stop words, then add to list of tokens and update the count
+        for i in re.findall(r'\b[a-zA-Z][a-zA-Z\']*[a-zA-Z]\b', page_content):
+            temp = i.lower()
+            if temp not in STOPWORDS:
+                tokens.append(temp)
+                word_count[temp] += 1
 
+        if len(tokens) > 250: # List of tokens > 250 is considered as having high textual information content
+            # Checking repetitive page Portion using hash
+            hashed = hash(tuple(tokens)) # Using tuple as hash() needs immutable object
+            if hashed in unique_pages.keys():
+                return [] # Returning nothing since this page has already been extracted
+            unique_pages[hashed] = url 
 
+            # Subdomain Portion
+            subdomain = urlparse(url).hostname # Parse the url to get the subdomain of the url
+            if subdomain.endswith('.ics.uci.edu') and subdomain != "www.ics.uci.edu":
+                subdomains[subdomain] += 1 # Adding occurrence of subdomain
 
+            # Longest Page Portion
+            if len(tokens) > largest_words:
+                largest_words = len(tokens)
+                largest_page = url
 
+            # Getting hyperlink Portion
+            for j in soup.find_all('a', href=True):
+                defragmented = urldefrag(j["href"])
+                new_link = urljoin(url, defragmented.url)
 
+                if is_valid(new_link):
+                    urls.add(new_link)
 
-    return list()
+            # Printing Portion
+            print(f'URL:        {url}')
+            print(f'    Length of the page:        {len(tokens)}')
+            print(f'    New Links URLs added:        {len(urls)}')
+            print("====================================================================")
+    
+    else:
+        print(f"ERROR: {resp.error}")
+
+    return list(urls)
+    
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
