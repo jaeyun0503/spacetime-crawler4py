@@ -77,7 +77,7 @@ def extract_next_links(url, resp):
 
             # Getting hyperlink Portion
             for j in soup.find_all('a', href=True):
-                defragmented = urldefrag(j["href"])
+                defragmented = urldefrag(j["href"])  # Removing Fragment identifier
                 new_link = urljoin(url, defragmented.url)
 
                 if is_valid(new_link):
@@ -93,7 +93,7 @@ def extract_next_links(url, resp):
         print(f"ERROR: {resp.error}")
 
     return list(urls)
-    
+
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
