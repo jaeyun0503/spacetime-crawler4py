@@ -48,68 +48,72 @@ def extract_next_links(url, resp):
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     global word_count, subdomains, unique_pages, largest_words, largest_page
-
-    # Checking redirect first
-    redirect_count = 0  # redirect count
-    MAX_REDIRECTS = 5 # Limit of redirects
-
-    while 300 <= resp.status < 400 and redirect_count < MAX_REDIRECTS:
-        new_url = resp.headers.get('Location') # Getting redirecting link
-
-        if not new_url:
-            break
-
-        new_url = urljoin(url, new_url)  # Absolute URL
-        url = new_url
-        resp = requests.get(url, allow_redirects=False)  # Gettting the new URL
-        redirect_count += 1
-
     urls = set()  # Set for saving unique links
-    if resp.status == 200 and resp.raw_response.content: # Check if status is 200 (OK) and the response contains content
-        soup = BeautifulSoup(resp.raw_response.content,'html.parser')
-        page_content = soup.get_text()  # Getting the text on the URL page
-        tokens = []  # List of tokens
 
-        # for loop to check if the word is valid, not in stop words, then add to list of tokens and update the count
-        for i in re.findall(r'\b[a-zA-Z][a-zA-Z\']*[a-zA-Z]\b', page_content):
-            temp = i.lower()
-            if temp not in STOPWORDS:
-                tokens.append(temp)
-                word_count[temp] += 1
+    try:
 
-        if 250 < len(tokens) < 100000000: # List of 250 < tokens < 100000000 is considered as having high textual information content
-            # Checking repetitive page Portion using hash
-            hashed = hash(tuple(tokens)) # Using tuple as hash() needs immutable object
-            if hashed in unique_pages.keys():
-                return [] # Returning nothing since this page has already been extracted
-            unique_pages[hashed] = url 
+        # Checking redirect first
+        redirect_count = 0  # redirect count
+        MAX_REDIRECTS = 5 # Limit of redirects
 
-            # Subdomain Portion
-            subdomain = urlparse(url).hostname # Parse the url to get the subdomain of the url
-            if subdomain.endswith('.ics.uci.edu') and subdomain != "www.ics.uci.edu":
-                subdomains[subdomain] += 1 # Adding occurrence of subdomain
+        while 300 <= resp.status < 400 and redirect_count < MAX_REDIRECTS:
+            new_url = resp.headers.get('Location') # Getting redirecting link
 
-            # Longest Page Portion
-            if len(tokens) > largest_words:
-                largest_words = len(tokens)
-                largest_page = url
+            if not new_url:
+                break
 
-            # Getting hyperlink Portion
-            for j in soup.find_all('a', href=True):
-                defragmented = urldefrag(j["href"])  # Removing Fragment identifier
-                new_link = urljoin(url, defragmented.url)
+            new_url = urljoin(url, new_url)  # Absolute URL
+            url = new_url
+            resp = requests.get(url, allow_redirects=False)  # Gettting the new URL
+            redirect_count += 1
 
-                if is_valid(new_link):
-                    urls.add(new_link)
+        if resp.status == 200 and resp.raw_response.content: # Check if status is 200 (OK) and the response contains content
+            soup = BeautifulSoup(resp.raw_response.content,'html.parser')
+            page_content = soup.get_text()  # Getting the text on the URL page
+            tokens = []  # List of tokens
 
-            # Printing Portion
-            print(f'URL:        {url}')
-            print(f'    Length of the page:        {len(tokens)}')
-            print(f'    New Links URLs added:        {len(urls)}')
-            print("====================================================================")
-    
-    else:
-        print(f"ERROR: {resp.error}")
+            # for loop to check if the word is valid, not in stop words, then add to list of tokens and update the count
+            for i in re.findall(r'\b[a-zA-Z][a-zA-Z\']*[a-zA-Z]\b', page_content):
+                temp = i.lower()
+                if temp not in STOPWORDS:
+                    tokens.append(temp)
+                    word_count[temp] += 1
+
+            if 250 < len(tokens) < 100000000: # List of 250 < tokens < 100000000 is considered as having high textual information content
+                # Checking repetitive page Portion using hash
+                hashed = hash(tuple(tokens)) # Using tuple as hash() needs immutable object
+                if hashed in unique_pages.keys():
+                    return [] # Returning nothing since this page has already been extracted
+                unique_pages[hashed] = url 
+
+                # Subdomain Portion
+                subdomain = urlparse(url).hostname # Parse the url to get the subdomain of the url
+                if subdomain.endswith('.ics.uci.edu') and subdomain != "www.ics.uci.edu":
+                    subdomains[subdomain] += 1 # Adding occurrence of subdomain
+
+                # Longest Page Portion
+                if len(tokens) > largest_words:
+                    largest_words = len(tokens)
+                    largest_page = url
+
+                # Getting hyperlink Portion
+                for j in soup.find_all('a', href=True):
+                    defragmented = urldefrag(j["href"])  # Removing Fragment identifier
+                    new_link = urljoin(url, defragmented.url)
+
+                    if is_valid(new_link):
+                        urls.add(new_link)
+
+                # Printing Portion
+                print(f'URL:        {url}')
+                print(f'    Length of the page:        {len(tokens)}')
+                print(f'    New Links URLs added:        {len(urls)}')
+                print("====================================================================")
+        
+        else:
+            print(f"ERROR: {resp.error}")
+    except:
+        print("ERROR WHILE SCRAPING")
 
     return list(urls)
 
@@ -155,8 +159,6 @@ def is_valid(url):
         if not parsers[parsed.netloc].can_fetch("*", url):
             return False
 
-        # TODO: 307/308 redirect?
-
         # File extensions
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
@@ -173,4 +175,32 @@ def is_valid(url):
         raise
 
 
-# TODO: Need a report function
+def generate_report():
+    """
+    Generates the report.txt based on the scraped data
+
+    Args:
+        None
+    Returns:
+        None
+    """
+    sorted_words = sorted(word_count, key=word_count.get, reverse=True)[:50]
+
+    with open("report.txt", "w") as file:
+        file.write("REPORT of the Scraped Pages:\n\n")
+        file.write(f"Number of Unique Pages found: {str(len(unique_pages))}\n\n")
+        file.write(f"Longest Page in terms of words: {largest_page}\n")
+        
+        for i in range(1, 51):
+            print(f"  {i}.    {sorted_words[i - 1]}\n")
+
+        file.write(f"\nSubdomains under ics.uci.edu domain: \n")
+
+        subdomain_list = []
+        for key, value in subdomains.items():
+            subdomain_list.append((key, value))
+        subdomain_list.sort()
+
+        for j in range(len(subdomain_list)):
+            file.write(f'  {subdomain_list[j][0]}:  {subdomain_list[j][1]} Pages\n')
+            
