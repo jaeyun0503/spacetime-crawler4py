@@ -47,6 +47,22 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
+    global word_count, subdomains, unique_pages, largest_words, largest_page
+
+    # Checking redirect first
+    redirect_count = 0  # redirect count
+    MAX_REDIRECTS = 5 # Limit of redirects
+
+    while 300 <= resp.status < 400 and redirect_count < MAX_REDIRECTS:
+        new_url = resp.headers.get('Location') # Getting redirecting link
+
+        if not new_url:
+            break
+
+        new_url = urljoin(url, new_url)  # Absolute URL
+        url = new_url
+        resp = requests.get(url, allow_redirects=False)  # Gettting the new URL
+        redirect_count += 1
 
     urls = set()  # Set for saving unique links
     if resp.status == 200 and resp.raw_response.content: # Check if status is 200 (OK) and the response contains content
@@ -111,6 +127,7 @@ def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
+    global parsers
     try:
         # URL scheme check
         parsed = urlparse(url)
@@ -119,7 +136,7 @@ def is_valid(url):
 
         # Domain check
         domains = ['.ics.uci.edu', '.cs.uci.edu', '.stat.uci.edu', '.informatics.uci.edu']
-        if not any(domain in parsed.netloc for domain in allowed_domains):
+        if not any(domain in parsed.netloc for domain in domains):
             return False
 
         # Calendar trap (need to fix later)
@@ -138,6 +155,8 @@ def is_valid(url):
         if not parsers[parsed.netloc].can_fetch("*", url):
             return False
 
+        # TODO: 307/308 redirect?
+
         # File extensions
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
@@ -152,3 +171,6 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+
+# TODO: Need a report function
