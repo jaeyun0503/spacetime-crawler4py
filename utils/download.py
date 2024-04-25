@@ -9,6 +9,8 @@ def download(url, config, logger=None):
     resp = requests.get(
         f"http://{host}:{port}/",
         params=[("q", f"{url}"), ("u", f"{config.user_agent}")])
+
+        # TODO CHECK get method
     try:
         if resp and resp.content:
             return Response(cbor.loads(resp.content))

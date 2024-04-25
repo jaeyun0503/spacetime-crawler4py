@@ -12,6 +12,7 @@ parsers = defaultdict(RobotFileParser) # To save instance of RobotFileParser to 
 unique_pages = {} # Dictionary for saving the hash values and unique urls
 largest_words = 0 # Saving the number of words in the longest page
 largest_page = "" # Saving the url of the longest page
+robot_check = False # Boolean value for creating RobotFileParsers
 
 def scraper(url, resp):
     """
@@ -50,23 +51,7 @@ def extract_next_links(url, resp):
     global word_count, subdomains, unique_pages, largest_words, largest_page
     urls = set()  # Set for saving unique links
 
-    try:
-
-        # Checking redirect first
-        redirect_count = 0  # redirect count
-        MAX_REDIRECTS = 5 # Limit of redirects
-
-        while 300 <= resp.status < 400 and redirect_count < MAX_REDIRECTS:
-            new_url = resp.headers.get('Location') # Getting redirecting link
-
-            if not new_url:
-                break
-
-            new_url = urljoin(url, new_url)  # Absolute URL
-            url = new_url
-            resp = requests.get(url, allow_redirects=False)  # Gettting the new URL
-            redirect_count += 1
-
+    try:        
         if resp.status == 200 and resp.raw_response.content: # Check if status is 200 (OK) and the response contains content
             soup = BeautifulSoup(resp.raw_response.content,'html.parser')
             page_content = soup.get_text()  # Getting the text on the URL page
@@ -101,7 +86,7 @@ def extract_next_links(url, resp):
                     defragmented = urldefrag(j["href"])  # Removing Fragment identifier
                     new_link = urljoin(url, defragmented.url)
 
-                    if is_valid(new_link):
+                    if new_link:  # TODO: CHECK
                         urls.add(new_link)
 
                 # Printing Portion
@@ -131,7 +116,12 @@ def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
+    # global robot_check
     global parsers
+    # if not robot_check:
+    #     load_robots()
+    #     robot_check = True
+
     try:
         # URL scheme check
         parsed = urlparse(url)
@@ -153,11 +143,16 @@ def is_valid(url):
 
         # Robots.txt
         if parsed.netloc not in parsers:
-            parsers[parsed.netloc].set_url(f"{parsed.scheme}://{parsed.netloc}/robots.txt")
-            parsers[parsed.netloc].read()
-
+            robot_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+            parsers[parsed.netloc] = RobotFileParser()
+            parsers[parsed.netloc].set_url(robot_url)
+            try:
+                parsers[parsed.netloc].read()
+            except Exception as e:
+                return False
         if not parsers[parsed.netloc].can_fetch("*", url):
             return False
+
 
         # File extensions
         return not re.match(
@@ -173,6 +168,29 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+
+def load_robots():
+    """
+    Makes a defaultdict of RobotFileParsers
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+    global parsers
+    domains = ["https://ics.uci.edu/robots.txt",
+               "https://cs.ics.uci.edu/robots.txt",
+               "https://informatics.uci.edu/robots.txt",
+               "https://stat.uci.edu/robots.txt"]
+
+    for i in domains:
+        parsed = urlparse(i)
+        parsers[parsed.netloc] = RobotFileParser()
+        parsers[parsed.netloc].set_url(i)
+        parsers[parsed.netloc].read()
 
 
 def generate_report():
