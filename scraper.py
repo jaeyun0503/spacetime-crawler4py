@@ -7,12 +7,19 @@ from stopWords import STOPWORDS
 
 word_count = defaultdict(int) # To save word counts for later (using this to skip initializing step)
 subdomains = defaultdict(int) # To save url counts for each subdomain under ics.uci.edu
-parsers = defaultdict(RobotFileParser) # To save instance of RobotFileParser to avoid parsing multiple times 
+parsers = [] # To save instance of RobotFileParser to avoid parsing multiple times 
 
 unique_pages = {} # Dictionary for saving the hash values and unique urls
 largest_words = 0 # Saving the number of words in the longest page
 largest_page = "" # Saving the url of the longest page
 robot_check = False # Boolean value for creating RobotFileParsers
+allowed_domains = ["https://ics.uci.edu/robots.txt", "https://cs.ics.uci.edu/robots.txt", "https://informatics.uci.edu/robots.txt", "https://stat.uci.edu/robots.txt"] # Domains for robots.txt
+
+for robot_domain in allowed_domains:
+    parser = RobotFileParser()
+    parser.set_url(robot_domain)
+    parser.read()
+    parsers.append(parser)
 
 def scraper(url, resp):
     """
@@ -57,23 +64,30 @@ def extract_next_links(url, resp):
             page_content = soup.get_text()  # Getting the text on the URL page
             tokens = []  # List of tokens
 
-            # for loop to check if the word is valid, not in stop words, then add to list of tokens and update the count
+            # for loop to check if the word is valid, not in stop words, then add to list of tokens
             for i in re.findall(r'\b[a-zA-Z][a-zA-Z\']*[a-zA-Z]\b', page_content):
                 temp = i.lower()
-                if temp not in STOPWORDS:
+                if temp not in STOPWORDS and temp:
                     tokens.append(temp)
-                    word_count[temp] += 1
 
             if 250 < len(tokens) < 100000000: # List of 250 < tokens < 100000000 is considered as having high textual information content
                 # Checking repetitive page Portion using hash
                 hashed = hash(tuple(tokens)) # Using tuple as hash() needs immutable object
                 if hashed in unique_pages.keys():
-                    return [] # Returning nothing since this page has already been extracted
+                    return list(urls) # Returning nothing since this page has already been extracted
+                if url in unique_pages.values():
+                    return list(urls)
+
+                # Adding hash value and url pair to dictionary
                 unique_pages[hashed] = url 
+
+                # Updaing word count
+                for j in tokens:
+                    word_count[j] += 1
 
                 # Subdomain Portion
                 subdomain = urlparse(url).hostname # Parse the url to get the subdomain of the url
-                if subdomain.endswith('.ics.uci.edu') and subdomain != "www.ics.uci.edu":
+                if subdomain.endswith('.ics.uci.edu') and subdomain != "www.ics.uci.edu" and subdomain:
                     subdomains[subdomain] += 1 # Adding occurrence of subdomain
 
                 # Longest Page Portion
@@ -82,11 +96,12 @@ def extract_next_links(url, resp):
                     largest_page = url
 
                 # Getting hyperlink Portion
-                for j in soup.find_all('a', href=True):
-                    defragmented = urldefrag(j["href"])  # Removing Fragment identifier
-                    new_link = urljoin(url, defragmented.url)
+                for j in soup.find_all('a'):
+                    link = j.get('href') # Getting urls
 
-                    if new_link:  # TODO: CHECK
+                    if link:
+                        defragmented = urldefrag(link)  # Removing Fragment identifier
+                        new_link = urljoin(url, defragmented.url)
                         urls.add(new_link)
 
                 # Printing Portion
@@ -94,7 +109,10 @@ def extract_next_links(url, resp):
                 print(f'    Length of the page:        {len(tokens)}')
                 print(f'    New Links URLs added:        {len(urls)}')
                 print("====================================================================")
-        
+            else:
+                return list(urls)
+        elif 300 <= resp.status < 400: # Redirects
+            return urls
         else:
             print(f"ERROR: {resp.error}")
     except:
@@ -116,11 +134,7 @@ def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
-    # global robot_check
     global parsers
-    # if not robot_check:
-    #     load_robots()
-    #     robot_check = True
 
     try:
         # URL scheme check
@@ -129,7 +143,7 @@ def is_valid(url):
             return False
 
         # Domain check
-        domains = ['.ics.uci.edu', '.cs.uci.edu', '.stat.uci.edu', '.informatics.uci.edu']
+        domains = ['ics.uci.edu', 'cs.uci.edu', 'stat.uci.edu', 'informatics.uci.edu']
         if not any(domain in parsed.netloc for domain in domains):
             return False
 
@@ -137,20 +151,16 @@ def is_valid(url):
         if re.search(r'(/calendar/|/\d{4}/\d{1,2}/\d{1,2}/)', parsed.path):
             return False
 
+        # Increment numbers
+        if re.search(r'(/page\d+)|(/\d+/)|(/[a-z]$/)|(/\d+-\d+)|(/index\d*\.html$)', parsed.path):
+            return False
+
         # Excessive query parameters
         if len(parse_qs(parsed.query)) > 15:  # More than 15 -- Excessive
             return False
 
         # Robots.txt
-        if parsed.netloc not in parsers:
-            robot_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
-            parsers[parsed.netloc] = RobotFileParser()
-            parsers[parsed.netloc].set_url(robot_url)
-            try:
-                parsers[parsed.netloc].read()
-            except Exception as e:
-                return False
-        if not parsers[parsed.netloc].can_fetch("*", url):
+        if not any(x.can_fetch("*", url) for x in parsers):
             return False
 
 
@@ -163,34 +173,12 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz"
+            + r"|json|sql|yaml|cmd|heic|webp|apk|aab)$", parsed.path.lower())
 
     except TypeError:
         print ("TypeError for ", parsed)
         raise
-
-
-def load_robots():
-    """
-    Makes a defaultdict of RobotFileParsers
-
-    Args:
-        None
-
-    Returns:
-        None
-    """
-    global parsers
-    domains = ["https://ics.uci.edu/robots.txt",
-               "https://cs.ics.uci.edu/robots.txt",
-               "https://informatics.uci.edu/robots.txt",
-               "https://stat.uci.edu/robots.txt"]
-
-    for i in domains:
-        parsed = urlparse(i)
-        parsers[parsed.netloc] = RobotFileParser()
-        parsers[parsed.netloc].set_url(i)
-        parsers[parsed.netloc].read()
 
 
 def generate_report():
