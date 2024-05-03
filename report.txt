@@ -1,0 +1,166 @@
+REPORT of the Scraped Pages:
+
+Number of Unique Pages found: 6196
+
+Longest Page in terms of words: http://www.ics.uci.edu/~kay/wordlist.txt
+
+1.    research                                                                    
+                                                                                    
+2.    computer                                                                    
+                                                                                  
+3.    uci                                                                         
+                                                                                  
+4.    ics
+
+5.    student
+
+6.    policies
+
+7.    school
+
+8.    bren
+
+9.    students
+
+10.    data
+
+11.    science
+
+12.    information
+
+13.    news
+
+14.    graduate
+
+15.    undergraduate
+
+16.    markellekelly
+
+17.    events
+
+18.    academic
+
+19.    contact
+
+20.    informatics
+
+21.    faculty
+
+22.    software
+
+23.    donald                                                    
+
+24.    learning                         
+
+25.    course                           
+
+26.    engineering
+
+27.    sciences
+
+28.    support
+
+29.    alumni     
+
+30.    computing
+
+31.    media   
+
+32.    irvine
+
+33.    us
+
+34.    university
+
+35.    people
+
+36.    department
+
+37.    policy
+
+38.    year
+
+39.    will
+
+40.    projects
+
+41.    community
+
+42.    ph
+
+43.    html
+
+44.    may
+
+45.    systems
+
+46.    can
+
+47.    design
+
+48.    view
+
+49.    resources
+
+50.    development
+
+Subdomains under ics.uci.edu domain: 
+  acoi.ics.uci.edu:  43 Pages
+  aiclub.ics.uci.edu:  1 Pages
+  archive.ics.uci.edu:  581 Pages
+  asterix.ics.uci.edu:  4 Pages
+  biaslab.ics.uci.edu:  4 Pages
+  cbcl.ics.uci.edu:  8 Pages
+  cdb.ics.uci.edu:  6 Pages
+  chenli.ics.uci.edu:  6 Pages
+  circadiomics.ics.uci.edu:  4 Pages
+  cml.ics.uci.edu:  6 Pages
+  code.ics.uci.edu:  9 Pages
+  computableplant.ics.uci.edu:  6 Pages
+  create.ics.uci.edu:  2 Pages
+  cs-stage.ics.uci.edu:  8 Pages
+  dgillen.ics.uci.edu:  4 Pages
+  ds4all.ics.uci.edu:  1 Pages
+  duttgroup.ics.uci.edu:  25 Pages
+  emj.ics.uci.edu:  12 Pages
+  evoke.ics.uci.edu:  1 Pages
+  flamingo.ics.uci.edu:  8 Pages
+  fr.ics.uci.edu:  2 Pages
+  futurehealth.ics.uci.edu:  40 Pages
+  hai.ics.uci.edu:  3 Pages
+  iasl.ics.uci.edu:  10 Pages
+  industryshowcase.ics.uci.edu:  1 Pages
+  informatics-stage.ics.uci.edu:  46 Pages
+  insite.ics.uci.edu:  6 Pages
+  ipf.ics.uci.edu:  1 Pages
+  ipubmed.ics.uci.edu:  1 Pages
+  isg.ics.uci.edu:  86 Pages
+  mcs.ics.uci.edu:  13 Pages
+  mds.ics.uci.edu:  6 Pages
+  mhcid.ics.uci.edu:  7 Pages
+  mlphysics.ics.uci.edu:  1 Pages
+  mondego.ics.uci.edu:  2 Pages
+  motifmap.ics.uci.edu:  2 Pages
+  mse.ics.uci.edu:  1 Pages
+  mswe.ics.uci.edu:  5 Pages
+  ngs.ics.uci.edu:  8 Pages
+  oai.ics.uci.edu:  1 Pages
+  plrg.ics.uci.edu:  12 Pages
+  radicle.ics.uci.edu:  1 Pages
+  redmiles.ics.uci.edu:  3 Pages
+  riscit.ics.uci.edu:  2 Pages
+  scratch.proteomics.ics.uci.edu:  1 Pages
+  sdcl.ics.uci.edu:  15 Pages
+  seal.ics.uci.edu:  1 Pages
+  sherlock.ics.uci.edu:  3 Pages
+  sli.ics.uci.edu:  1 Pages
+  sourcerer.ics.uci.edu:  1 Pages
+  statconsulting.ics.uci.edu:  1 Pages
+  statistics-stage.ics.uci.edu:  6 Pages
+  summeracademy.ics.uci.edu:  3 Pages
+  tastier.ics.uci.edu:  1 Pages
+  transformativeplay.ics.uci.edu:  15 Pages
+  unite.ics.uci.edu:  2 Pages
+  wearablegames.ics.uci.edu:  8 Pages
+  wics.ics.uci.edu:  22 Pages
+  www-db.ics.uci.edu:  3 Pages

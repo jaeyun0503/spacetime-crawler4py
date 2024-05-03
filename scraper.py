@@ -7,19 +7,13 @@ from stopWords import STOPWORDS
 
 word_count = defaultdict(int) # To save word counts for later (using this to skip initializing step)
 subdomains = defaultdict(int) # To save url counts for each subdomain under ics.uci.edu
-parsers = [] # To save instance of RobotFileParser to avoid parsing multiple times 
+# parsers = [] # To save instance of RobotFileParser to avoid parsing multiple times 
 
 unique_pages = {} # Dictionary for saving the hash values and unique urls
 largest_words = 0 # Saving the number of words in the longest page
 largest_page = "" # Saving the url of the longest page
-robot_check = False # Boolean value for creating RobotFileParsers
-allowed_domains = ["https://ics.uci.edu/robots.txt", "https://cs.ics.uci.edu/robots.txt", "https://informatics.uci.edu/robots.txt", "https://stat.uci.edu/robots.txt"] # Domains for robots.txt
-
-for robot_domain in allowed_domains:
-    parser = RobotFileParser()
-    parser.set_url(robot_domain)
-    parser.read()
-    parsers.append(parser)
+# allowed_domains = ["https://ics.uci.edu/robots.txt", "https://cs.ics.uci.edu/robots.txt", "https://informatics.uci.edu/robots.txt", "https://stat.uci.edu/robots.txt"] # Domains for robots.txt
+redirect_count = 0
 
 def scraper(url, resp):
     """
@@ -55,11 +49,27 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    global word_count, subdomains, unique_pages, largest_words, largest_page
+    global word_count, subdomains, unique_pages, largest_words, largest_page, redirect_count
     urls = set()  # Set for saving unique links
+
+    # if 300 <= resp.status < 400: # Redirects
+    #     if redirect_count < 5:
+    #         new_url = resp.headers.get('Location') # Getting redirecting link
+    #         if not new_url:
+    #             redirect_count = 0
+    #             return list(urls)
+
+    #         new_url = urljoin(url, new_url)  # Absolute URL
+    #         url = new_url
+    #         redirect_count += 1
+    #         return [url]
+    #     else:
+    #         redirect_count = 0
+    #         return list(urls)
 
     try:        
         if resp.status == 200 and resp.raw_response.content: # Check if status is 200 (OK) and the response contains content
+            # redirect_count = 0
             soup = BeautifulSoup(resp.raw_response.content,'html.parser')
             page_content = soup.get_text()  # Getting the text on the URL page
             tokens = []  # List of tokens
@@ -77,6 +87,18 @@ def extract_next_links(url, resp):
                     return list(urls) # Returning nothing since this page has already been extracted
                 if url in unique_pages.values():
                     return list(urls)
+                
+                # Robots.txt
+                # parsed = urlparse(url)
+                # robot_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+                # parser = RobotFileParser()
+                # parser.set_url(robot_url)
+                # try:
+                #     parser.read()
+                # except Exception as e:
+                #     return list(urls)
+                # if not parser.can_fetch("*", url):
+                #     return list(urls)
 
                 # Adding hash value and url pair to dictionary
                 unique_pages[hashed] = url 
@@ -111,8 +133,6 @@ def extract_next_links(url, resp):
                 print("====================================================================")
             else:
                 return list(urls)
-        elif 300 <= resp.status < 400: # Redirects
-            return urls
         else:
             print(f"ERROR: {resp.error}")
     except:
@@ -134,8 +154,6 @@ def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
-    global parsers
-
     try:
         # URL scheme check
         parsed = urlparse(url)
@@ -146,6 +164,17 @@ def is_valid(url):
         domains = ['ics.uci.edu', 'cs.uci.edu', 'stat.uci.edu', 'informatics.uci.edu']
         if not any(domain in parsed.netloc for domain in domains):
             return False
+        
+        # Excessive query parameters
+        if len(parse_qs(parsed.query)) >= 2:  # More than 2 (inclusive) -- Excessive
+            return False
+        
+        # Repeating path 
+        path = parsed.path
+        parts = [x for x in path.split('/') if x]
+        comparing = set(parts)
+        if len(parts) != len(comparing):
+            return False
 
         # Calendar trap (need to fix later)
         if re.search(r'(/calendar/|/\d{4}/\d{1,2}/\d{1,2}/)', parsed.path):
@@ -153,14 +182,6 @@ def is_valid(url):
 
         # Increment numbers
         if re.search(r'(/page\d+)|(/\d+/)|(/[a-z]$/)|(/\d+-\d+)|(/index\d*\.html$)', parsed.path):
-            return False
-
-        # Excessive query parameters
-        if len(parse_qs(parsed.query)) > 15:  # More than 15 -- Excessive
-            return False
-
-        # Robots.txt
-        if not any(x.can_fetch("*", url) for x in parsers):
             return False
 
 
@@ -172,9 +193,9 @@ def is_valid(url):
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
-            + r"|thmx|mso|arff|rtf|jar|csv"
+            + r"|thmx|mso|arff|rtf|jar|csv|tsv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz"
-            + r"|json|sql|yaml|cmd|heic|webp|apk|aab)$", parsed.path.lower())
+            + r"|json|sql|yaml|cmd|heic|webp|apk|aab|ds_store|txt)$", parsed.path.lower())
 
     except TypeError:
         print ("TypeError for ", parsed)
@@ -198,7 +219,7 @@ def generate_report():
         file.write(f"Longest Page in terms of words: {largest_page}\n")
         
         for i in range(1, 51):
-            print(f"  {i}.    {sorted_words[i - 1]}\n")
+            file.write(f"  {i}.    {sorted_words[i - 1]}\n")
 
         file.write(f"\nSubdomains under ics.uci.edu domain: \n")
 
