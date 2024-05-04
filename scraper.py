@@ -52,24 +52,24 @@ def extract_next_links(url, resp):
     global word_count, subdomains, unique_pages, largest_words, largest_page, redirect_count
     urls = set()  # Set for saving unique links
 
-    # if 300 <= resp.status < 400: # Redirects
-    #     if redirect_count < 5:
-    #         new_url = resp.headers.get('Location') # Getting redirecting link
-    #         if not new_url:
-    #             redirect_count = 0
-    #             return list(urls)
+    if 300 <= resp.status < 400: # Redirects
+        if redirect_count < 5:
+            new_url = resp.headers.get('Location') # Getting redirecting link
+            if not new_url:
+                redirect_count = 0
+                return list(urls)
 
-    #         new_url = urljoin(url, new_url)  # Absolute URL
-    #         url = new_url
-    #         redirect_count += 1
-    #         return [url]
-    #     else:
-    #         redirect_count = 0
-    #         return list(urls)
+            new_url = urljoin(url, new_url)  # Absolute URL
+            url = new_url
+            redirect_count += 1
+            return [url]
+        else:
+            redirect_count = 0
+            return list(urls)
 
     try:        
         if resp.status == 200 and resp.raw_response.content: # Check if status is 200 (OK) and the response contains content
-            # redirect_count = 0
+            redirect_count = 0
             soup = BeautifulSoup(resp.raw_response.content,'html.parser')
             page_content = soup.get_text()  # Getting the text on the URL page
             tokens = []  # List of tokens
@@ -88,17 +88,17 @@ def extract_next_links(url, resp):
                 if url in unique_pages.values():
                     return list(urls)
                 
-                # Robots.txt
-                # parsed = urlparse(url)
-                # robot_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
-                # parser = RobotFileParser()
-                # parser.set_url(robot_url)
-                # try:
-                #     parser.read()
-                # except Exception as e:
-                #     return list(urls)
-                # if not parser.can_fetch("*", url):
-                #     return list(urls)
+                Robots.txt
+                parsed = urlparse(url)
+                robot_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+                parser = RobotFileParser()
+                parser.set_url(robot_url)
+                try:
+                    parser.read()
+                except Exception as e:
+                    return list(urls)
+                if not parser.can_fetch("*", url):
+                    return list(urls)
 
                 # Adding hash value and url pair to dictionary
                 unique_pages[hashed] = url 
